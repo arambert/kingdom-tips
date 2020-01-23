@@ -1,0 +1,164 @@
+<html>
+ <head>
+ <style>
+ #RESULT table{border-collapse:collapse}
+ #RESULT th{width:100px;overflow:hidden}
+ #RESULT td{width:5px;padding:0px;margin:0px;vertical-align:bottom;overflow:hidden}
+ #RESULT td.head{width:60px;}
+ #RESULT div{width:5px;background:green;display:inline-block}
+ td{vertical-align:top;}
+ input {width:44px;}
+ a.plusmoins {text-decoration:none;border:1px outset #CCC;background:#CCC;display:inline-block;width:19px;height:19px;text-align:center;verticale-align:middle;color:black;font-weight:bold}
+ #MORE a{display:none}
+ </style>
+ </head>
+ <body>
+ <table style="position:fixed;width:100%;height:100%">
+ <tr>
+ <td style="white-space: nowrap;">
+ <form id="FORM">
+ <div id="TEMPLATE">
+ Commerce <input name="commerce" value="0" type="number"> 
+ Garnison <input type="number" name="garnison" value="10" min="0"> 
+ <a class="plusmoins" href="javascript:plus()" tabindex="2">+</a>
+ <a class="plusmoins" href="javascript:moins(this)" tabindex="2">-</a>
+ </div>
+ <div id="MORE"></div>
+ <button type="submit">Calcul</button>
+ </form>
+ </td>
+ <td>
+ <div id="RESULT" style="overflow:auto;height:100%;"></div>
+ </td>
+ </tr>
+ </table> 
+ </body>
+</html>
+<script>
+function Terre(commerce,soldat){
+ this.commerce = commerce;
+ this.soldat = soldat;
+ this.compteur = commerce*(Math.abs(commerce)+1)*5;
+ this.gain = 0;
+}
+Terre.prototype.image = function(){
+ return {commerce:this.commerce, soldat:this.soldat, gain:this.gain, compteur:this.compteur};
+}
+Terre.prototype.next = function(){
+ //mouais... dans ce cas on connait pas la formule
+ if(this.commerce<=0 && this.soldat===0){
+ this.commerce = this.compteur = undefined;
+ return;
+ }
+ var diffsoldat = this.commerce>0 ? Math.floor(this.soldat-this.commerce/2) : this.soldat;
+ if(diffsoldat<0){
+ //pas assez de soldat, la perte est le carré de la différence
+ this.compteur -= diffsoldat*diffsoldat;
+ }else if(diffsoldat>0){
+ //le compteur augmente tranquillou
+ this.compteur += diffsoldat;
+ }else{
+ //ben le delta compteur est à 0 on n'arrete pas pour avoir tjrs le meme nombre d'entrée, mais on pourrait ...
+ //break;
+ }
+ //on recalcule le commerce à partir du compteur grace à la formule magique
+ if(this.compteur>0){
+ this.commerce = Math.floor(Math.sqrt((this.compteur/5+0.25)) -0.5);
+ }else{
+ //doute, ce serait pas un -0.25 vu que le reste est inversé
+ this.commerce = Math.floor(-Math.sqrt((-this.compteur/5+0.25)) +0.5);
+ }
+ this.gain += (this.commerce - this.soldat);
+}
+
+//function de calcul
+function commerce(commerce, soldat){
+ var terre = new Terre(commerce, soldat);
+ var result = [terre.image()];
+ for(var i=0;i<192;i++){
+ terre.next();
+ result.push(terre.image());
+ }
+ return result;
+}
+//function d'aggregation de n commerce
+function aggregate(datas){
+ var result = [];
+ var data = datas[0];
+ //on duplique le premier
+ for(var i=0;i<data.length;i++){
+ result.push({commerce:data[i].commerce, gain:data[i].gain, soldat:data[i].soldat});
+ }
+ //et on ajoute les autres
+ for(var d=1;d<datas.length;d++){
+ data = datas[d]
+ for(var i=0;i<data.length;i++){
+ result[i].commerce = result[i].commerce+data[i].commerce;
+ result[i].gain = result[i].gain+data[i].gain;
+ result[i].soldat = result[i].soldat+data[i].soldat;
+ }
+ }
+ return result;
+}
+//function d'affichage
+function asHtml(commerces){
+ //pour uniformiser la taille du graphique
+ var maxcommerce = 0,mincommerce = 0;
+ for(var i=0;i<commerces.length;i++){
+ maxcommerce = Math.max(maxcommerce,commerces[i].commerce);
+ mincommerce = Math.min(mincommerce,commerces[i].commerce);
+ }
+ var coef = 300/(maxcommerce - mincommerce);
+ html = ('<table>');
+ html +=('<tr><th>Tour<br>Commerce<br>Soldats');
+ for(var i=0;i<commerces.length;i+=12){
+ html +=('<td class="head">'+i+'<br>'+commerces[i].commerce+'<br>'+commerces[i].soldat+'</td>');
+ }
+ html +=('</tr></table>');
+ html +=('<table style="height:300px;position:relative;top:'+(mincommerce*coef)+'px;"><tr><th>graph</th>');
+ 
+ for(var i=0;i<commerces.length;i++){
+ var commerce = commerces[i].commerce;
+ html +=('<td title="tour '+i+' commerce '+commerce+' compteur '+(getremaindcompt(commerce, commerces[i].compteur))+' ">');
+ if(commerce>0){
+ html += '<div style="height:'+commerce*coef+'px"></div>';
+ }else{
+ html += '<div style="position:absolute;background-color:red;height:'+(-commerce*coef)+'px"></div>';
+ }
+ html +=('</td>');
+ }
+ 
+ html +=('</tr></table>');
+ return html;
+}
+function getremaindcompt(commerce, compteur){
+ if (commerce < 0) return compteur + (commerce*(commerce-1))*5;
+ else return compteur - (commerce*(commerce+1))*5;
+}
+//function de l'ihm
+function plus(){
+ var newdiv = document.createElement('div');
+ newdiv.innerHTML = document.getElementById('TEMPLATE').innerHTML;
+ document.getElementById('MORE').appendChild(newdiv);
+}
+function moins(tag){
+ var more = document.getElementById('MORE');
+ more.removeChild(more.lastChild);
+}
+document.getElementById('FORM').onsubmit = function(evt){
+ if(this.commerce.length === undefined){
+ document.getElementById('RESULT').innerHTML = asHtml(commerce(parseInt(this.commerce.value),parseInt(this.garnison.value)));
+ }else{
+ var datas = [];
+ for(var i=0;i<this.commerce.length;i++){
+ datas.push(commerce(parseInt(this.commerce[i].value),parseInt(this.garnison[i].value)));
+ }
+ var html = asHtml(aggregate(datas))+"<hr>";
+ for(var i=0;i<datas.length;i++){
+ html += asHtml(datas[i]);
+ }
+ document.getElementById('RESULT').innerHTML = html;
+ }
+ evt.preventDefault();
+}
+</script>
