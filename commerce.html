@@ -110,9 +110,9 @@ function asHtml(commerces){
  }
  var coef = 300/(maxcommerce - mincommerce);
  html = ('<table>');
- html +=('<tr><th>Tour<br>Commerce<br>Soldats');
+ html +=('<tr><th>Tour<br>Commerce<br>Gain net<br>Soldats');
  for(var i=0;i<commerces.length;i+=12){
- html +=('<td class="head">'+i+'<br>'+commerces[i].commerce+'<br>'+commerces[i].soldat+'</td>');
+ html +=('<td class="head">'+i+'<br>'+commerces[i].commerce+'<br>'+commerces[i].gain+'<br>'+commerces[i].soldat+'</td>');
  }
  html +=('</tr></table>');
  html +=('<table style="height:300px;position:relative;top:'+(mincommerce*coef)+'px;"><tr><th>graph</th>');
